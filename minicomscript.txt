@@ -1,0 +1,45 @@
+verbose on
+timeout 30
+loop:
+  send "\n"
+  print "fw_size $(FW_SIZE)"
+  print "test $(SHELL)"
+ 
+  expect {
+    "root@OpenWrt" send reboot
+    "Hit any key to stop autoboot" send 1
+    "Press any key in 3 secs to enter boot command mode." send 1
+    "UserName" send telecomadmin
+    "Password" send nE7jA%5m
+    "ECNT>" goto load
+    "bldr>" goto econet_bootloader
+    "#" send reboot
+  }
+  sleep 1
+  goto loop
+
+load:
+  send env set loadaddr 0x91800000
+  sleep 1
+  ! busybox tftp -p -l bin/targets/airoha/an7581/openwrt-airoha-an7581-airoha_an7581-evb-initramfs-uImage.itb -r tclinux.bin 192.168.1.1
+  send "bootm"
+  #expect {
+  #  "get filesize" send run start
+  #}
+  sleep 5
+  exit
+  goto load
+
+econet_bootloader:
+  timeout 600
+  verbose on
+  print "jump 80020000"
+  send "xmdm 80020000 $(FW_SIZE)"
+  expect "C"
+  print "C detected"
+  ! sx initramfs < /dev/ttyUSB0 > /dev/ttyUSB0
+
+  expect "bldr>"
+  send "jump 80020000"
+  exit
+
